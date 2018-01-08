@@ -13,14 +13,11 @@
   <button onclick="textRoomPress();">Send</button>
 </div>
 <video id="selfView" autoplay></video>
-<!--  TODO volume control-->
-<!-- document.getElementById("selfView").volume = 0.2 -->
 <div id="remoteViewContainer"></div>
 <div id="roomIDContainer">
   <input id="roomID" value="abc">
   <button onclick="press();">Join/Create room</button>
 </div>
-<button onclick="muteMicrophone();">un/mute microphone</button>
 </body>
 <script src="/socket.io/socket.io.js"></script>
 <script type="text/javascript">
@@ -53,7 +50,7 @@ var remoteViewContainer = document.getElementById("remoteViewContainer");
 var localStream;
 
 function getLocalStream() {
-  navigator.getUserMedia({ "audio": true, "video": false }, function (stream) {
+  navigator.getUserMedia({ "audio": true, "video": true }, function (stream) {
     localStream = stream;
     selfView.src = URL.createObjectURL(stream);
     selfView.muted = true;
@@ -191,8 +188,8 @@ socket.on('leave', function(socketId){
   leave(socketId);
 });
 
-socket.on('connect', function() {
-  console.log('socket.on connect:', socket);
+socket.on('connect', function(data) {
+  console.log('connect');
   getLocalStream();
 });
 
@@ -209,15 +206,6 @@ function press() {
     roomIDContainer.parentElement.removeChild(roomIDContainer);
     join(roomID);
   }
-}
-function muteMicrophone (){
-  localStream.getAudioTracks()[0].enabled ? (
-    console.log("Mute microphone"),
-    localStream.getAudioTracks()[0].enabled = false
-  ) : (
-    console.log("Unmute microphone"),
-    localStream.getAudioTracks()[0].enabled = true
-  )
 }
 function textRoomPress() {
   var text = document.getElementById('textRoomInput').value;
