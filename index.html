@@ -65,12 +65,14 @@ function join(roomID) {
     console.log('join', socketIds);
     for (var i in socketIds) {
       var socketId = socketIds[i];
+      // craete OFFER peer connection
       createPC(socketId, true);
     }
   });
 }
 
 function createPC(socketId, isOffer) {
+  console.log('createPC', socketId, isOffer);
   var pc = new RTCPeerConnection(configuration);
   pcPeers[socketId] = pc;
 
@@ -82,10 +84,11 @@ function createPC(socketId, isOffer) {
   };
 
   function createOffer() {
+    console.log('💰💰💰 createOffer');
     pc.createOffer(function(desc) {
       console.log('createOffer', desc);
       pc.setLocalDescription(desc, function () {
-        console.log('setLocalDescription', pc.localDescription);
+        console.log('🎁🎁🎁 setLocalDescription', pc.localDescription.type);
         socket.emit('exchange', {'to': socketId, 'sdp': pc.localDescription });
       }, logError);
     }, logError);
@@ -149,28 +152,31 @@ function createPC(socketId, isOffer) {
 }
 
 function exchange(data) {
+  console.log('🤑🤑🤑 exchange');
   var fromId = data.from;
   var pc;
   if (fromId in pcPeers) {
     pc = pcPeers[fromId];
   } else {
+    // craete NO OFFER peer connection: only exchange ice candidates
     pc = createPC(fromId, false);
   }
 
   if (data.sdp) {
-    console.log('exchange sdp', data);
+    console.log('💚💚💚 exchange sdp', data);
     pc.setRemoteDescription(new RTCSessionDescription(data.sdp), function () {
-      if (pc.remoteDescription.type == "offer")
+      if (pc.remoteDescription.type === "offer"){
         pc.createAnswer(function(desc) {
           console.log('createAnswer', desc);
           pc.setLocalDescription(desc, function () {
-            console.log('setLocalDescription', pc.localDescription);
+            console.log('🎁🎁🎁 setLocalDescription', pc.localDescription.type);
             socket.emit('exchange', {'to': fromId, 'sdp': pc.localDescription });
           }, logError);
         }, logError);
+      }
     }, logError);
   } else {
-    console.log('exchange candidate', data);
+    console.log('💙💙💙 exchange candidate', data);
     pc.addIceCandidate(new RTCIceCandidate(data.candidate));
   }
 }
@@ -185,9 +191,13 @@ function leave(socketId) {
 }
 
 socket.on('exchange', function(data){
+  console.log('socket.on exchange', data);
+  // Some one has created offer in RTCPeerConnection
+  // Exchange ice candidates (RTCSessionDescription)
   exchange(data);
 });
 socket.on('leave', function(socketId){
+  console.log('socket.on leave', socketId);
   leave(socketId);
 });
 

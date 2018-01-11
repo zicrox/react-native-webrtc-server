@@ -30,6 +30,8 @@ server.listen(serverPort, function(){
   }
 });
 
+// Create room if not exists
+// return: socket Ids In Room
 function socketIdsInRoom(name) {
   var socketIds = io.nsps['/'].adapter.rooms[name];
   if (socketIds) {
@@ -54,6 +56,7 @@ io.on('connection', function(socket){
     }
   });
 
+  // Create / join room
   socket.on('join', function(name, callback){
     console.log('join', name);
     var socketIds = socketIdsInRoom(name);
