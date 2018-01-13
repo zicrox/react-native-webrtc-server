@@ -6,4 +6,11 @@ Demo server: https://react-native-webrtc.herokuapp.com/
 # Get started
 
 1. `npm install`
-2. `npm start`
+
+Build front
+
+2. `npm build`
+
+Start server
+
+3. `npm start`
