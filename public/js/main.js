@@ -77,14 +77,16 @@ function createPC(socketId, isOffer) {
   }
 
   pc.oniceconnectionstatechange = function(event) {
+    // iceConnectionState constants: 
+    // checking, closed, completed, connected, disconnected, failed, new
     console.log('oniceconnectionstatechange', event);
-    if (event.target.iceConnectionState === 'connected') {
-      createDataChannel();
-    }
-  };
+    console.log('event.target.iceConnectionState ', event.target.iceConnectionState);
+    renderStatus(event);
+  }
+  
   pc.onsignalingstatechange = function(event) {
     console.log('onsignalingstatechange', event);
-  };
+  }
 
   pc.onaddstream = function (event) {
     console.log('onaddstream', event);
@@ -93,36 +95,9 @@ function createPC(socketId, isOffer) {
     element.autoplay = 'autoplay';
     element.src = URL.createObjectURL(event.stream);
     remoteViewContainer.appendChild(element);
-  };
-  pc.addStream(localStream);
-  function createDataChannel() {
-    if (pc.textDataChannel) {
-      return;
-    }
-    var dataChannel = pc.createDataChannel("text");
-
-    dataChannel.onerror = function (error) {
-      console.log("dataChannel.onerror", error);
-    };
-
-    dataChannel.onmessage = function (event) {
-      console.log("dataChannel.onmessage:", event.data);
-      var content = document.getElementById('textRoomContent');
-      content.innerHTML = content.innerHTML + '<p>' + socketId + ': ' + event.data + '</p>';
-    };
-
-    dataChannel.onopen = function () {
-      console.log('dataChannel.onopen');
-      var textRoom = document.getElementById('textRoom');
-      textRoom.style.display = "block";
-    };
-
-    dataChannel.onclose = function () {
-      console.log("dataChannel.onclose");
-    };
-
-    pc.textDataChannel = dataChannel;
   }
+  
+  pc.addStream(localStream);
   return pc;
 }
 
@@ -156,15 +131,8 @@ function exchange(data) {
   }
 }
 
-function leave(socketId) {
-  console.log('leave', socketId);
-  var pc = pcPeers[socketId];
-  pc.close();
-  delete pcPeers[socketId];
-  var video = document.getElementById("remoteView" + socketId);
-  if (video) video.remove();
-}
 
+// Signaling socket functions
 socket.on('exchange', function(data){
   console.log('socket.on exchange', data);
   // Some one has created offer in RTCPeerConnection
@@ -181,6 +149,8 @@ socket.on('connect', function() {
   getLocalStream();
 });
 
+
+// Aux functions
 function logError(error) {
   console.log("logError", error);
 }
@@ -195,6 +165,16 @@ function press() {
     join(roomID);
   }
 }
+
+function leave(socketId) {
+  console.log('leave', socketId);
+  var pc = pcPeers[socketId];
+  pc.close();
+  delete pcPeers[socketId];
+  var video = document.getElementById("remoteView" + socketId);
+  if (video) video.remove();
+}
+
 function muteMicrophone (){
   localStream.getAudioTracks()[0].enabled ? (
     console.log("Mute microphone"),
@@ -204,17 +184,16 @@ function muteMicrophone (){
     localStream.getAudioTracks()[0].enabled = true
   )
 }
-function textRoomPress() {
-  var text = document.getElementById('textRoomInput').value;
-  if (text == "") {
-    alert('Enter something');
-  } else {
-    document.getElementById('textRoomInput').value = '';
-    var content = document.getElementById('textRoomContent');
-    content.innerHTML = content.innerHTML + '<p>' + 'Me' + ': ' + text + '</p>';
-    for (var key in pcPeers) {
-      var pc = pcPeers[key];
-      pc.textDataChannel.send(text);
-    }
+
+function renderStatus (event){
+  // Render target status
+  function render(status){
+    document.querySelector('#textRoomContent span').innerHTML = "Status: "+status
+  }
+  // Status to render
+  var status = event.target.iceConnectionState;
+  if (status === 'checking' || status === 'connected' || 
+      status === 'disconnected' || status === 'failed') {
+    render(status);
   }
 }
