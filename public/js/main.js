@@ -5,7 +5,8 @@ var socket = io("https://react-native-webrtc.herokuapp.com");
 
 // get webrtc methods unprefixed
 // Inspiration: https://github.com/substack/get-browser-rtc
-var RTCPeerConnection = window.RTCPeerConnection || window.mozRTCPeerConnection || window.webkitRTCPeerConnection || window.msRTCPeerConnection;
+// var RTCPeerConnection = window.RTCPeerConnection || window.mozRTCPeerConnection || window.webkitRTCPeerConnection || window.msRTCPeerConnection;
+var RTCPeerConnection = RTCPeerConnectionLogger();
 var RTCSessionDescription = window.RTCSessionDescription || window.mozRTCSessionDescription || window.webkitRTCSessionDescription || window.msRTCSessionDescription;
 navigator.getUserMedia = navigator.getUserMedia || navigator.mozGetUserMedia || navigator.webkitGetUserMedia || navigator.msGetUserMedia;
 
@@ -43,11 +44,19 @@ function createPC(socketId, isOffer) {
     console.log('onsignalingstatechange', event);
   }
 
-  pc.ontrack = function (event) {
+  // TODO deprecated use ontrack
+  // https://github.com/webrtc/samples/pull/902/files
+  pc.onaddstream = function (event) {
     pcOnaddstream(event, socketId);
   }
   
+  // TODO deprecated use addTrack
   pc.addStream(localStream);
+  
+  var logger = pc.subscribeLogger(console.log);
+  // logger(); // unsubscribe
+  pc.startLogger(pc);
+  
   return pc;
 }
 
