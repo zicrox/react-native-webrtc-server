@@ -8,7 +8,7 @@
 <div id="textRoom">
   <h3>WebRTC test connection</h3>
   <div id="textRoomContent">
-    <span>Status: load</span>
+    <span>Connection status: ready</span>
   </div>
 </div>
 <video id="selfView" autoplay></video>
@@ -17,11 +17,13 @@
 <div id="remoteViewContainer"></div>
 <div id="roomIDContainer">
   <input id="roomID" value="abc">
-  <button onclick="press();">Join/Create room</button>
+  <button onclick="pressToJoin();">Join/Create room</button>
 </div>
 <button onclick="muteMicrophone();">un/mute microphone</button>
 </body>
 <script src="/socket.io/socket.io.js"></script>
-<!-- <script src="js/scripts.min.js"></script> -->
 <script src="js/main.js"></script>
+<script src="js/signalingHandler.js"></script>
+<script src="js/buttonsFun.js"></script>
+<!-- <script src="js/scripts.min.js"></script> -->
 </html>

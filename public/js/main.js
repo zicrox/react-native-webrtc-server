@@ -1,31 +1,111 @@
 
 // var socket = io();
-var socket = io("https://react-native-webrtc.herokuapp.com");
 // var socket = io("http://localhost:4444");
+var socket = io("https://react-native-webrtc.herokuapp.com");
 
+// get webrtc methods unprefixed
+// Inspiration: https://github.com/substack/get-browser-rtc
 var RTCPeerConnection = window.RTCPeerConnection || window.mozRTCPeerConnection || window.webkitRTCPeerConnection || window.msRTCPeerConnection;
 var RTCSessionDescription = window.RTCSessionDescription || window.mozRTCSessionDescription || window.webkitRTCSessionDescription || window.msRTCSessionDescription;
 navigator.getUserMedia = navigator.getUserMedia || navigator.mozGetUserMedia || navigator.webkitGetUserMedia || navigator.msGetUserMedia;
 
-var twilioIceServers = [
-     { url: 'stun:global.stun.twilio.com:3478?transport=udp' }
-     // { url: 'turn:global.turn.twilio.com:3478?transport=udp',
-     //   username: 'ea757ad2c42b932c7f2abe480295e7eb039dc2b13b78c86bc412818ed51e5eea',
-     //   credential: 'MPnnojPRoPDI+B3kLONGF9P440Lb8NkrTq+FxxJBVro=' },
-     // { url: 'turn:global.turn.twilio.com:3478?transport=tcp',
-     //   username: 'ea757ad2c42b932c7f2abe480295e7eb039dc2b13b78c86bc412818ed51e5eea',
-     //   credential: 'MPnnojPRoPDI+B3kLONGF9P440Lb8NkrTq+FxxJBVro=' },
-     // { url: 'turn:global.turn.twilio.com:443?transport=tcp',
-     //   username: 'ea757ad2c42b932c7f2abe480295e7eb039dc2b13b78c86bc412818ed51e5eea',
-     //   credential: 'MPnnojPRoPDI+B3kLONGF9P440Lb8NkrTq+FxxJBVro=' } 
-];
 var configuration = {"iceServers": [{"url": "stun:stun.l.google.com:19302"}]};
-// configuration.iceServers = twilioIceServers;
-
-var pcPeers = {};
 var selfView = document.getElementById("selfView");
 var remoteViewContainer = document.getElementById("remoteViewContainer");
+var pcPeers = {};
 var localStream;
+
+function createPC(socketId, isOffer) {
+  console.log('createPC', socketId, isOffer);
+  var pc = new RTCPeerConnection(configuration);
+  pcPeers[socketId] = pc;
+
+  pc.onicecandidate = function (event) {
+    console.log('onicecandidate', event);
+    if (event.candidate)
+      socket.emit('exchange', {'to': socketId, 'candidate': event.candidate });
+  }
+
+  pc.onnegotiationneeded = function () {
+    console.log('onnegotiationneeded');
+    if (isOffer)
+      pcCreateOffer(pc, socketId);
+  }
+
+  pc.oniceconnectionstatechange = function(event) {
+    // iceConnectionState constants: 
+    // checking, closed, completed, connected, disconnected, failed, new
+    console.log('oniceconnectionstatechange', event);
+    renderConnectionStatus(event);
+  }
+  
+  pc.onsignalingstatechange = function(event) {
+    console.log('onsignalingstatechange', event);
+  }
+
+  pc.ontrack = function (event) {
+    pcOnaddstream(event, socketId);
+  }
+  
+  pc.addStream(localStream);
+  return pc;
+}
+
+function pcOnaddstream(event, socketId) {
+  console.log('onaddstream', event);
+  var element = document.createElement('video');
+  element.id = "remoteView" + socketId;
+  element.autoplay = 'autoplay';
+  element.src = URL.createObjectURL(event.stream);
+  remoteViewContainer.appendChild(element);
+}
+
+function pcCreateOffer(pc, socketId) {
+  console.log('💰💰💰 createOffer');
+  pc.createOffer(function(desc) {
+    console.log('createOffer', desc);
+    pc.setLocalDescription(desc, function () {
+      console.log('🎁🎁🎁 setLocalDescription', pc.localDescription.type);
+      socket.emit('exchange', {'to': socketId, 'sdp': pc.localDescription });
+    }, logError);
+  }, logError);
+}
+
+function pcCreateAnswer(pc, fromId, data) {
+  pc.setRemoteDescription(new RTCSessionDescription(data.sdp), function () {
+    if (pc.remoteDescription.type === "offer"){
+      pc.createAnswer(function(desc) {
+        console.log('createAnswer', desc);
+        pc.setLocalDescription(desc, function () {
+          console.log('🎁🎁🎁 setLocalDescription', pc.localDescription.type);
+          socket.emit('exchange', {'to': fromId, 'sdp': pc.localDescription });
+        }, logError);
+      }, logError);
+    }
+  }, logError);
+}
+
+function signalingExchange(data) {
+  console.log('🤑🤑🤑 exchange');
+  var fromId = data.from;
+  var pc;
+  // If pc is not register: craete NO OFFER peer connection
+  if (fromId in pcPeers) {
+    pc = pcPeers[fromId];
+  } else {
+    pc = createPC(fromId, false);
+  }
+  // SDP messages
+  if (data.sdp) {
+    console.log('💚💚💚 exchange sdp', data);
+    pcCreateAnswer(pc, fromId, data);
+  }
+  // ICE messages
+  if(data.candidate) {
+    console.log('💙💙💙 exchange candidate', data);
+    pc.addIceCandidate(new RTCIceCandidate(data.candidate));
+  }
+}
 
 function getLocalStream() {
   navigator.getUserMedia({ "audio": true, "video": false }, function (stream) {
@@ -46,127 +126,9 @@ function join(roomID) {
   });
 }
 
-function createPC(socketId, isOffer) {
-  console.log('createPC', socketId, isOffer);
-  var pc = new RTCPeerConnection(configuration);
-  pcPeers[socketId] = pc;
-
-  pc.onicecandidate = function (event) {
-    console.log('onicecandidate', event);
-    if (event.candidate) {
-      socket.emit('exchange', {'to': socketId, 'candidate': event.candidate });
-    }
-  };
-
-  function createOffer() {
-    console.log('💰💰💰 createOffer');
-    pc.createOffer(function(desc) {
-      console.log('createOffer', desc);
-      pc.setLocalDescription(desc, function () {
-        console.log('🎁🎁🎁 setLocalDescription', pc.localDescription.type);
-        socket.emit('exchange', {'to': socketId, 'sdp': pc.localDescription });
-      }, logError);
-    }, logError);
-  }
-
-  pc.onnegotiationneeded = function () {
-    console.log('onnegotiationneeded');
-    if (isOffer) {
-      createOffer();
-    }
-  }
-
-  pc.oniceconnectionstatechange = function(event) {
-    // iceConnectionState constants: 
-    // checking, closed, completed, connected, disconnected, failed, new
-    console.log('oniceconnectionstatechange', event);
-    console.log('event.target.iceConnectionState ', event.target.iceConnectionState);
-    renderStatus(event);
-  }
-  
-  pc.onsignalingstatechange = function(event) {
-    console.log('onsignalingstatechange', event);
-  }
-
-  pc.onaddstream = function (event) {
-    console.log('onaddstream', event);
-    var element = document.createElement('video');
-    element.id = "remoteView" + socketId;
-    element.autoplay = 'autoplay';
-    element.src = URL.createObjectURL(event.stream);
-    remoteViewContainer.appendChild(element);
-  }
-  
-  pc.addStream(localStream);
-  return pc;
-}
-
-function exchange(data) {
-  console.log('🤑🤑🤑 exchange');
-  var fromId = data.from;
-  var pc;
-  if (fromId in pcPeers) {
-    pc = pcPeers[fromId];
-  } else {
-    // craete NO OFFER peer connection: only exchange ice candidates
-    pc = createPC(fromId, false);
-  }
-
-  if (data.sdp) {
-    console.log('💚💚💚 exchange sdp', data);
-    pc.setRemoteDescription(new RTCSessionDescription(data.sdp), function () {
-      if (pc.remoteDescription.type === "offer"){
-        pc.createAnswer(function(desc) {
-          console.log('createAnswer', desc);
-          pc.setLocalDescription(desc, function () {
-            console.log('🎁🎁🎁 setLocalDescription', pc.localDescription.type);
-            socket.emit('exchange', {'to': fromId, 'sdp': pc.localDescription });
-          }, logError);
-        }, logError);
-      }
-    }, logError);
-  } else {
-    console.log('💙💙💙 exchange candidate', data);
-    pc.addIceCandidate(new RTCIceCandidate(data.candidate));
-  }
-}
-
-
-// Signaling socket functions
-socket.on('exchange', function(data){
-  console.log('socket.on exchange', data);
-  // Some one has created offer in RTCPeerConnection
-  // Exchange ice candidates (RTCSessionDescription)
-  exchange(data);
-});
-socket.on('leave', function(socketId){
-  console.log('socket.on leave', socketId);
-  leave(socketId);
-});
-
-socket.on('connect', function() {
-  console.log('socket.on connect:', socket);
-  getLocalStream();
-});
-
-
-// Aux functions
-function logError(error) {
-  console.log("logError", error);
-}
-
-function press() {
-  var roomID = document.getElementById('roomID').value;
-  if (roomID == "") {
-    alert('Please enter room ID');
-  } else {
-    var roomIDContainer = document.getElementById('roomIDContainer');
-    roomIDContainer.parentElement.removeChild(roomIDContainer);
-    join(roomID);
-  }
-}
-
-function leave(socketId) {
+// Controled by event in signaling socket
+// Also will can control this with "oniceconnectionstatechange"
+function socketLeave(socketId) {
   console.log('leave', socketId);
   var pc = pcPeers[socketId];
   pc.close();
@@ -175,25 +137,7 @@ function leave(socketId) {
   if (video) video.remove();
 }
 
-function muteMicrophone (){
-  localStream.getAudioTracks()[0].enabled ? (
-    console.log("Mute microphone"),
-    localStream.getAudioTracks()[0].enabled = false
-  ) : (
-    console.log("Unmute microphone"),
-    localStream.getAudioTracks()[0].enabled = true
-  )
+function logError(error) {
+  console.log("logError", error);
 }
 
-function renderStatus (event){
-  // Render target status
-  function render(status){
-    document.querySelector('#textRoomContent span').innerHTML = "Status: "+status
-  }
-  // Status to render
-  var status = event.target.iceConnectionState;
-  if (status === 'checking' || status === 'connected' || 
-      status === 'disconnected' || status === 'failed') {
-    render(status);
-  }
-}
