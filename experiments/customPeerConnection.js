@@ -16,3 +16,9 @@ RTCPeerConnection.prototipe.onLog = function(log){
   };
   
 }
+
+// override methods before "new"
+// Uncaught TypeError: Illegal invocation
+RTCPeerConnection.prototype.onicecandidate = function (event) {
+  console.log('RTCPeerConnection.prototype.onicecandidate');
+}

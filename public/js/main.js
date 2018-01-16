@@ -22,26 +22,24 @@ function createPC(socketId, isOffer) {
   pcPeers[socketId] = pc;
 
   pc.onicecandidate = function (event) {
-    console.log('onicecandidate', event);
     if (event.candidate)
       socket.emit('exchange', {'to': socketId, 'candidate': event.candidate });
   }
 
-  pc.onnegotiationneeded = function () {
-    console.log('onnegotiationneeded');
+  pc.onnegotiationneeded = function (event) {
     if (isOffer)
       pcCreateOffer(pc, socketId);
   }
 
   pc.oniceconnectionstatechange = function(event) {
-    // iceConnectionState constants: 
+    // pc.iceConnectionState constants:
     // checking, closed, completed, connected, disconnected, failed, new
-    console.log('oniceconnectionstatechange', event);
     renderConnectionStatus(event);
   }
   
   pc.onsignalingstatechange = function(event) {
-    console.log('onsignalingstatechange', event);
+    // pc.signalingState constants:
+    // have-remote-offer, have-local-offer, stable, closed
   }
 
   // TODO deprecated use ontrack
@@ -55,7 +53,13 @@ function createPC(socketId, isOffer) {
   
   var logger = pc.subscribeLogger(console.log);
   // logger(); // unsubscribe
-  pc.startLogger(pc);
+  
+  var instanceDataToLogger = {
+    peerConnection: pc,
+    socketId: socketId,
+    isOffer: isOffer
+  }
+  pc.startLogger(instanceDataToLogger);
   
   return pc;
 }
