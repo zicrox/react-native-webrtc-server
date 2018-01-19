@@ -1,9 +1,8 @@
 
-function RTCPeerConnectionLogger() {
-  const RTCPeerConnection = window.RTCPeerConnection || window.mozRTCPeerConnection || window.webkitRTCPeerConnection || window.msRTCPeerConnection;
-  var logListeners = [];
+function RTCPeerConnectionLogger(configuration) {
+  var logListeners  = [];
   
-  RTCPeerConnection.prototype.subscribeLogger = function(listener){
+  RTCPeerConnection.prototype.subscribeLogger = function(listener) {
     if (typeof listener !== 'function')
       throw new Error('Expected listener to be a function.');
       
@@ -16,12 +15,23 @@ function RTCPeerConnectionLogger() {
 	}
   
   // Bind methods with _logDispatch
-  RTCPeerConnection.prototype.startLogger = function(instanceData){
-    const pc = instanceData.peerConnection;
+  RTCPeerConnection.prototype.startLogger = function(instanceData) {
+    const pc = this;
+    // if (typeof pc !== 'object')
+    //   throw new Error('Expected peerConnectiontener in instanceData');
+      
     function _logDispatch (log){
-      log.socketId = instanceData.socketId
+      // log.payload.socketId = instanceData.socketId;
       logListeners.slice().forEach(listener => listener(log));
     }
+    _logDispatch({ type : 'startLogger', payload: instanceData });
+    
+    if (instanceData.getStats) {
+      // console.log('try to setInterval getStats');
+      // setInterval(_getStats, 1000);
+    }
+    
+    // TODO duplicated code: methods have the same logic
     
     const _onicecandidate = pc.onicecandidate;
     pc.onicecandidate = function (event) {
@@ -85,5 +95,6 @@ function RTCPeerConnectionLogger() {
     
 	}
   
-  return RTCPeerConnection;
+  // const RTCPeerConnection = window.RTCPeerConnection || window.mozRTCPeerConnection || window.webkitRTCPeerConnection || window.msRTCPeerConnection;
+  return new RTCPeerConnection(configuration);
 }

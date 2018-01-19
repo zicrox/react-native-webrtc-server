@@ -10,16 +10,6 @@ function pressToJoin() {
   }
 }
 
-// function muteMicrophone (){
-//   localStream.getAudioTracks()[0].enabled ? (
-//     console.log("Mute microphone"),
-//     localStream.getAudioTracks()[0].enabled = false
-//   ) : (
-//     console.log("Unmute microphone"),
-//     localStream.getAudioTracks()[0].enabled = true
-//   )
-// }
-
 function muteMicrophone (){
   localStream.getAudioTracks()[0].enabled = !localStream.getAudioTracks()[0].enabled 
   console.log("Microphone enabled: "+localStream.getAudioTracks()[0].enabled);

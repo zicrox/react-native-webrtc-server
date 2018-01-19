@@ -6,7 +6,7 @@ var socket = io("https://react-native-webrtc.herokuapp.com");
 // get webrtc methods unprefixed
 // Inspiration: https://github.com/substack/get-browser-rtc
 // var RTCPeerConnection = window.RTCPeerConnection || window.mozRTCPeerConnection || window.webkitRTCPeerConnection || window.msRTCPeerConnection;
-var RTCPeerConnection = RTCPeerConnectionLogger();
+// var RTCPeerConnection = RTCPeerConnectionLogger();
 var RTCSessionDescription = window.RTCSessionDescription || window.mozRTCSessionDescription || window.webkitRTCSessionDescription || window.msRTCSessionDescription;
 navigator.getUserMedia = navigator.getUserMedia || navigator.mozGetUserMedia || navigator.webkitGetUserMedia || navigator.msGetUserMedia;
 
@@ -17,8 +17,7 @@ var pcPeers = {};
 var localStream;
 
 function createPC(socketId, isOffer) {
-  console.log('createPC', socketId, isOffer);
-  var pc = new RTCPeerConnection(configuration);
+  var pc = new RTCPeerConnectionLogger2(configuration);
   pcPeers[socketId] = pc;
 
   pc.onicecandidate = function (event) {
@@ -51,21 +50,20 @@ function createPC(socketId, isOffer) {
   // TODO deprecated use addTrack
   pc.addStream(localStream);
   
-  var logger = pc.subscribeLogger(console.log);
-  // logger(); // unsubscribe
+  var endLogger = pc.subscribeLogger(console.log);
   
-  var instanceDataToLogger = {
-    peerConnection: pc,
-    socketId: socketId,
-    isOffer: isOffer
-  }
-  pc.startLogger(instanceDataToLogger);
+  // var instanceDataToLogger = {
+  //   socketId: socketId,
+  //   isOffer: isOffer,
+  //   getStats: true
+  // }
+  // pc.startLogger(instanceDataToLogger);
+  pc.startLogger();
   
   return pc;
 }
 
 function pcOnaddstream(event, socketId) {
-  console.log('onaddstream', event);
   var element = document.createElement('video');
   element.id = "remoteView" + socketId;
   element.autoplay = 'autoplay';
@@ -74,11 +72,10 @@ function pcOnaddstream(event, socketId) {
 }
 
 function pcCreateOffer(pc, socketId) {
-  console.log('💰💰💰 createOffer');
+  console.log('createOffer');
   pc.createOffer(function(desc) {
-    console.log('createOffer', desc);
     pc.setLocalDescription(desc, function () {
-      console.log('🎁🎁🎁 setLocalDescription', pc.localDescription.type);
+      // console.log('🎁🎁🎁 setLocalDescription', pc.localDescription.type);
       socket.emit('exchange', {'to': socketId, 'sdp': pc.localDescription });
     }, logError);
   }, logError);
@@ -88,9 +85,9 @@ function pcCreateAnswer(pc, fromId, data) {
   pc.setRemoteDescription(new RTCSessionDescription(data.sdp), function () {
     if (pc.remoteDescription.type === "offer"){
       pc.createAnswer(function(desc) {
-        console.log('createAnswer', desc);
+        console.log('createAnswer');
         pc.setLocalDescription(desc, function () {
-          console.log('🎁🎁🎁 setLocalDescription', pc.localDescription.type);
+          // console.log('🎁🎁🎁 setLocalDescription', pc.localDescription.type);
           socket.emit('exchange', {'to': fromId, 'sdp': pc.localDescription });
         }, logError);
       }, logError);
@@ -99,7 +96,7 @@ function pcCreateAnswer(pc, fromId, data) {
 }
 
 function signalingExchange(data) {
-  console.log('🤑🤑🤑 exchange');
+  // console.log('🤑🤑🤑 exchange');
   var fromId = data.from;
   var pc;
   // If pc is not register: craete NO OFFER peer connection
@@ -110,12 +107,12 @@ function signalingExchange(data) {
   }
   // SDP messages
   if (data.sdp) {
-    console.log('💚💚💚 exchange sdp', data);
+    console.log('💚💚💚 exchange sdp');
     pcCreateAnswer(pc, fromId, data);
   }
   // ICE messages
   if(data.candidate) {
-    console.log('💙💙💙 exchange candidate', data);
+    console.log('💙💙💙 exchange candidate');
     pc.addIceCandidate(new RTCIceCandidate(data.candidate));
   }
 }
