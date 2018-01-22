@@ -18,6 +18,7 @@ var localStream;
 
 function createPC(socketId, isOffer) {
   var pc = new RTCPeerConnectionLogger2(configuration);
+  var endLogger = pc.subscribeLogger(console.log);
   pcPeers[socketId] = pc;
 
   pc.onicecandidate = function (event) {
@@ -48,17 +49,9 @@ function createPC(socketId, isOffer) {
   }
   
   // TODO deprecated use addTrack
-  pc.addStream(localStream);
+  pc.addStream(localStream, logError);
   
-  var endLogger = pc.subscribeLogger(console.log);
-  
-  // var instanceDataToLogger = {
-  //   socketId: socketId,
-  //   isOffer: isOffer,
-  //   getStats: true
-  // }
-  // pc.startLogger(instanceDataToLogger);
-  pc.startLogger();
+  pc.startEventHandlersLogger();
   
   return pc;
 }
@@ -70,6 +63,8 @@ function pcOnaddstream(event, socketId) {
   element.src = URL.createObjectURL(event.stream);
   remoteViewContainer.appendChild(element);
 }
+
+// TODO migrate "flow" from callback to promise
 
 function pcCreateOffer(pc, socketId) {
   console.log('createOffer');
@@ -150,4 +145,29 @@ function socketLeave(socketId) {
 function logError(error) {
   console.log("logError", error);
 }
+
+function _getStats() {
+  console.log('try to getStats');
+  console.log('pcPeers',Object.keys(pcPeers));
+  const pc = pcPeers[Object.keys(pcPeers)[0]];
+  if (pc && pc.getRemoteStreams()[0] && pc.getRemoteStreams()[0].getAudioTracks()[0]) {
+    const track = pc.getRemoteStreams()[0].getAudioTracks()[0];
+    // console.log('pc.getRemoteStreams()',pc.getRemoteStreams());
+    // console.log('getAudioTracks()',pc.getRemoteStreams()[0].getAudioTracks());
+    console.log('getStats track',track);
+    // pc.getStats(track, function(report) {
+    //   console.log('getStats REMOTE report', report);
+    // }, logError);
+    pc.getStats()
+      .then(function(report) {
+        console.log('getStats REMOTE report', report);
+      })
+      .catch(function(error) {
+        console.log("err");
+      });
+  }
+}
+// setInterval(_getStats, 3000);
+
+
 
