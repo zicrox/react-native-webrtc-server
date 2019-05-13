@@ -1,0 +1,11 @@
+{
+  "apps" : [{
+    "name"        : "react-webrtc",
+    "script"      : "server.js",
+    "log_date_format" : "YYYY-MM-DD HH:mm:ss Z",
+    "env": {
+      "LOCAL": true, 
+      "PORT": 7050
+    }
+  }]
+}
