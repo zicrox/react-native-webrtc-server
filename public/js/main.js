@@ -1,7 +1,11 @@
 
 // var socket = io();
 // var socket = io("http://localhost:4444");
-var socket = io("https://react-native-webrtc.herokuapp.com");
+var socket = io.connect('https://blynce.com:7050', {secure: true, transports: ['websocket']})
+// var socket = io.connect('https://blynce.com', {secure: true, transports: ['websocket'], path: '/react-webrtc'})
+// var socket = io.connect('https://blynce.com', {secure: true, transports: ['xhr-polling'], path: '/react-webrtc'})
+// var socket = io('https://blynce.com', {path: '/react-webrtc'})
+// var socket = io("https://react-native-webrtc.herokuapp.com");
 
 // get webrtc methods unprefixed
 // Inspiration: https://github.com/substack/get-browser-rtc
@@ -60,7 +64,8 @@ function pcOnaddstream(event, socketId) {
   var element = document.createElement('video');
   element.id = "remoteView" + socketId;
   element.autoplay = 'autoplay';
-  element.src = URL.createObjectURL(event.stream);
+  // selfView.src = URL.createObjectURL(event.stream);
+  element.srcObject = event.stream;
   remoteViewContainer.appendChild(element);
 }
 
@@ -115,7 +120,9 @@ function signalingExchange(data) {
 function getLocalStream() {
   navigator.getUserMedia({ "audio": true, "video": false }, function (stream) {
     localStream = stream;
-    selfView.src = URL.createObjectURL(stream);
+    console.log(stream);
+    // selfView.src = URL.createObjectURL(stream);
+    selfView.srcObject = stream;
     selfView.muted = true;
   }, logError);
 }
@@ -146,27 +153,37 @@ function logError(error) {
   console.log("logError", error);
 }
 
-function _getStats() {
+function _getStats(iterations) {
   console.log('try to getStats');
-  console.log('pcPeers',Object.keys(pcPeers));
+  // console.log('pcPeers',Object.keys(pcPeers));
   const pc = pcPeers[Object.keys(pcPeers)[0]];
   if (pc && pc.getRemoteStreams()[0] && pc.getRemoteStreams()[0].getAudioTracks()[0]) {
-    const track = pc.getRemoteStreams()[0].getAudioTracks()[0];
+    // const track = pc.getRemoteStreams()[0].getAudioTracks()[0];
     // console.log('pc.getRemoteStreams()',pc.getRemoteStreams());
     // console.log('getAudioTracks()',pc.getRemoteStreams()[0].getAudioTracks());
-    console.log('getStats track',track);
+    // console.log('getStats track',track);
     // pc.getStats(track, function(report) {
     //   console.log('getStats REMOTE report', report);
     // }, logError);
     pc.getStats()
-      .then(function(report) {
-        console.log('getStats REMOTE report', report);
+      .then(function(stats) {
+        console.log('getStats REMOTE report', stats);
+        stats.forEach(function(report, stat) {
+          // console.log(report);
+          // console.log(stat);
+        });
       })
       .catch(function(error) {
-        console.log("err");
+        console.log("err", error);
       });
   }
+  iterations = iterations || 0;
+  if (iterations <= 2){
+    iterations++;
+    setTimeout(_getStats.bind(this, iterations), 3000);
+  }
 }
+_getStats();
 // setInterval(_getStats, 3000);
 
 
